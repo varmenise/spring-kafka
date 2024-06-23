@@ -17,6 +17,8 @@ The naming convention for DLT topics has been standardized to use the "-dlt" suf
 
 A new method, `getGroupId()`, has been added to the `ConsumerSeekCallback` interface.
 This method allows for more selective seek operations by targeting only the desired consumer group.
+The `AbstractConsumerSeekAware` can also now register, retrieve, and remove all callbacks for each topic partition in a multi-group listener scenario without missing any.
+See the new APIs (`getSeekCallbacksFor(TopicPartition topicPartition)`, `getTopicsAndCallbacks()`) for more details.
 For more details, see xref:kafka/seek.adoc#seek[Seek API Docs].
 
 [[x33-new-option-ignore-empty-batch]]
