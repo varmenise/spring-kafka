@@ -59,6 +59,8 @@ import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.event.ConcurrentContainerStoppedEvent;
+import org.springframework.kafka.event.ConsumerStoppedEvent;
 import org.springframework.kafka.event.ContainerStoppedEvent;
 import org.springframework.kafka.event.KafkaEvent;
 import org.springframework.kafka.support.TopicPartitionOffset;
@@ -77,6 +79,7 @@ import org.springframework.lang.Nullable;
  * @author Artem Yakshin
  * @author Vladimir Tsanev
  * @author Soby Chacko
+ * @author Lokesh Alamuri
  */
 @EmbeddedKafka(topics = { ConcurrentMessageListenerContainerTests.topic1,
 		ConcurrentMessageListenerContainerTests.topic2,
@@ -157,10 +160,14 @@ public class ConcurrentMessageListenerContainerTests {
 		container.setChangeConsumerThreadName(true);
 		BlockingQueue<KafkaEvent> events = new LinkedBlockingQueue<>();
 		CountDownLatch stopLatch = new CountDownLatch(4);
+		CountDownLatch concurrentContainerStopLatch = new CountDownLatch(1);
 		container.setApplicationEventPublisher(e -> {
 			events.add((KafkaEvent) e);
 			if (e instanceof ContainerStoppedEvent) {
 				stopLatch.countDown();
+			}
+			if (e instanceof ConcurrentContainerStoppedEvent) {
+				concurrentContainerStopLatch.countDown();
 			}
 		});
 		CountDownLatch intercepted = new CountDownLatch(4);
@@ -205,6 +212,7 @@ public class ConcurrentMessageListenerContainerTests {
 		container.getContainers().get(0).start();
 		container.stop();
 		assertThat(stopLatch.await(10, TimeUnit.SECONDS)).isTrue();
+		assertThat(concurrentContainerStopLatch.await(10, TimeUnit.SECONDS)).isTrue();
 		assertThat(container.isInExpectedState()).isTrue();
 		events.forEach(e -> {
 			assertThat(e.getContainer(MessageListenerContainer.class)).isSameAs(container);
@@ -215,6 +223,12 @@ public class ConcurrentMessageListenerContainerTests {
 				else {
 					assertThat(children).contains((KafkaMessageListenerContainer<Integer, String>) e.getSource());
 				}
+			}
+			else if (e instanceof ConcurrentContainerStoppedEvent concurrentContainerStoppedEvent) {
+				assertThat(concurrentContainerStoppedEvent.getSource()).isSameAs(container);
+				assertThat(concurrentContainerStoppedEvent.getContainer(MessageListenerContainer.class))
+						.isSameAs(container);
+				assertThat(concurrentContainerStoppedEvent.getReason()).isEqualTo(ConsumerStoppedEvent.Reason.NORMAL);
 			}
 			else {
 				assertThat(children).contains((KafkaMessageListenerContainer<Integer, String>) e.getSource());

@@ -27,3 +27,10 @@ For more details, see xref:kafka/seek.adoc#seek[Seek API Docs].
 `RecordFilterStrategy` now supports ignoring empty batches that result from filtering.
 This can be configured through overriding default method `ignoreEmptyBatch()`, which defaults to false, ensuring `KafkaListener` is invoked even if all `ConsumerRecords` are filtered out.
 For more details, see xref:kafka/receiving-messages/filtering.adoc[Message receive filtering Docs].
+
+
+[[x33-concurrent-container-stopped-event]]
+=== ConcurrentContainerStoppedEvent
+
+The `ConcurentContainerMessageListenerContainer` emits now a `ConcurrentContainerStoppedEvent` when all of its child containers are stopped.
+For more details, see xref:kafka/events.adoc[Application Events] and `ConcurrentContainerStoppedEvent` Javadocs.

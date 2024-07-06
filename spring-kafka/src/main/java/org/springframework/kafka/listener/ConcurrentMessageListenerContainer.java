@@ -35,6 +35,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.event.ConcurrentContainerStoppedEvent;
 import org.springframework.kafka.event.ConsumerStoppedEvent.Reason;
 import org.springframework.kafka.support.TopicPartitionOffset;
 import org.springframework.lang.Nullable;
@@ -58,6 +59,7 @@ import org.springframework.util.Assert;
  * @author Vladimir Tsanev
  * @author Tomaz Fernandes
  * @author Wang Zhiyang
+ * @author Lokesh Alamuri
  */
 public class ConcurrentMessageListenerContainer<K, V> extends AbstractMessageListenerContainer<K, V> {
 
@@ -65,7 +67,7 @@ public class ConcurrentMessageListenerContainer<K, V> extends AbstractMessageLis
 
 	private final List<AsyncTaskExecutor> executors = new ArrayList<>();
 
-	private final AtomicInteger stoppedContainers = new AtomicInteger();
+	private final AtomicInteger startedContainers = new AtomicInteger();
 
 	private int concurrency = 1;
 
@@ -243,6 +245,7 @@ public class ConcurrentMessageListenerContainer<K, V> extends AbstractMessageLis
 						+ topicPartitions.length);
 				this.concurrency = topicPartitions.length;
 			}
+			this.startedContainers.set(0);
 			setRunning(true);
 
 			for (int i = 0; i < this.concurrency; i++) {
@@ -375,23 +378,37 @@ public class ConcurrentMessageListenerContainer<K, V> extends AbstractMessageLis
 	}
 
 	@Override
+	public void childStarted(MessageListenerContainer child) {
+		this.startedContainers.incrementAndGet();
+	}
+
+	@Override
 	public void childStopped(MessageListenerContainer child, Reason reason) {
 		if (this.reason == null || reason.equals(Reason.AUTH)) {
 			this.reason = reason;
 		}
-		if (Reason.AUTH.equals(this.reason)
-				&& getContainerProperties().isRestartAfterAuthExceptions()
-				&& this.concurrency == this.stoppedContainers.incrementAndGet()) {
+		int startedContainersCount = this.startedContainers.decrementAndGet();
+		if (startedContainersCount == 0) {
+			publishConcurrentContainerStoppedEvent(this.reason);
+			if (Reason.AUTH.equals(this.reason)
+					&& getContainerProperties().isRestartAfterAuthExceptions()) {
 
-			this.reason = null;
-			this.stoppedContainers.set(0);
+				this.reason = null;
 
-			// This has to run on another thread to avoid a deadlock on lifecycleMonitor
-			AsyncTaskExecutor exec = getContainerProperties().getListenerTaskExecutor();
-			if (exec == null) {
-				exec = new SimpleAsyncTaskExecutor(getListenerId() + ".authRestart");
+				// This has to run on another thread to avoid a deadlock on lifecycleMonitor
+				AsyncTaskExecutor exec = getContainerProperties().getListenerTaskExecutor();
+				if (exec == null) {
+					exec = new SimpleAsyncTaskExecutor(getListenerId() + ".authRestart");
+				}
+				exec.execute(this::start);
 			}
-			exec.execute(this::start);
+		}
+	}
+
+	private void publishConcurrentContainerStoppedEvent(Reason reason) {
+		ApplicationEventPublisher eventPublisher = getApplicationEventPublisher();
+		if (eventPublisher != null) {
+			eventPublisher.publishEvent(new ConcurrentContainerStoppedEvent(this, reason));
 		}
 	}
 
