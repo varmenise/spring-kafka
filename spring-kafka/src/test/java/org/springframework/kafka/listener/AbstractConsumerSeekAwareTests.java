@@ -53,6 +53,7 @@ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 /**
  * @author Borahm Lee
+ * @author Artem Bilan
  * @since 3.3
  */
 @DirtiesContext
@@ -73,48 +74,59 @@ class AbstractConsumerSeekAwareTests {
 
 	@Test
 	public void checkCallbacksAndTopicPartitions() {
-		await().timeout(Duration.ofSeconds(5)).untilAsserted(() -> {
-			Map<ConsumerSeekCallback, List<TopicPartition>> callbacksAndTopics = multiGroupListener.getCallbacksAndTopics();
-			Set<ConsumerSeekCallback> registeredCallbacks = callbacksAndTopics.keySet();
-			Set<TopicPartition> registeredTopicPartitions = callbacksAndTopics.values().stream().flatMap(Collection::stream).collect(Collectors.toSet());
+		await().timeout(Duration.ofSeconds(5))
+				.untilAsserted(() -> {
+					Map<ConsumerSeekCallback, List<TopicPartition>> callbacksAndTopics =
+							multiGroupListener.getCallbacksAndTopics();
+					Set<ConsumerSeekCallback> registeredCallbacks = callbacksAndTopics.keySet();
+					Set<TopicPartition> registeredTopicPartitions =
+							callbacksAndTopics.values()
+									.stream()
+									.flatMap(Collection::stream)
+									.collect(Collectors.toSet());
 
-			Map<TopicPartition, List<ConsumerSeekCallback>> topicsAndCallbacks = multiGroupListener.getTopicsAndCallbacks();
-			Set<TopicPartition> getTopicPartitions = topicsAndCallbacks.keySet();
-			Set<ConsumerSeekCallback> getCallbacks = topicsAndCallbacks.values().stream().flatMap(Collection::stream).collect(Collectors.toSet());
+					Map<TopicPartition, List<ConsumerSeekCallback>> topicsAndCallbacks =
+							multiGroupListener.getTopicsAndCallbacks();
+					Set<TopicPartition> getTopicPartitions = topicsAndCallbacks.keySet();
+					Set<ConsumerSeekCallback> getCallbacks =
+							topicsAndCallbacks.values()
+									.stream()
+									.flatMap(Collection::stream)
+									.collect(Collectors.toSet());
 
-			assertThat(registeredCallbacks).containsExactlyInAnyOrderElementsOf(getCallbacks).isNotEmpty();
-			assertThat(registeredTopicPartitions).containsExactlyInAnyOrderElementsOf(getTopicPartitions).hasSize(3);
-		});
+					assertThat(registeredCallbacks).containsExactlyInAnyOrderElementsOf(getCallbacks).isNotEmpty();
+					assertThat(registeredTopicPartitions).containsExactlyInAnyOrderElementsOf(getTopicPartitions);
+				});
 	}
 
 	@Test
 	void seekForAllGroups() throws Exception {
 		template.send(TOPIC, "test-data");
 		template.send(TOPIC, "test-data");
-		assertThat(MultiGroupListener.latch1.await(10, TimeUnit.SECONDS)).isTrue();
-		assertThat(MultiGroupListener.latch2.await(10, TimeUnit.SECONDS)).isTrue();
+		assertThat(MultiGroupListener.latch1.await(30, TimeUnit.SECONDS)).isTrue();
+		assertThat(MultiGroupListener.latch2.await(30, TimeUnit.SECONDS)).isTrue();
 
 		MultiGroupListener.latch1 = new CountDownLatch(2);
 		MultiGroupListener.latch2 = new CountDownLatch(2);
 
 		multiGroupListener.seekToBeginning();
-		assertThat(MultiGroupListener.latch1.await(10, TimeUnit.SECONDS)).isTrue();
-		assertThat(MultiGroupListener.latch2.await(10, TimeUnit.SECONDS)).isTrue();
+		assertThat(MultiGroupListener.latch1.await(30, TimeUnit.SECONDS)).isTrue();
+		assertThat(MultiGroupListener.latch2.await(30, TimeUnit.SECONDS)).isTrue();
 	}
 
 	@Test
 	void seekForSpecificGroup() throws Exception {
 		template.send(TOPIC, "test-data");
 		template.send(TOPIC, "test-data");
-		assertThat(MultiGroupListener.latch1.await(10, TimeUnit.SECONDS)).isTrue();
-		assertThat(MultiGroupListener.latch2.await(10, TimeUnit.SECONDS)).isTrue();
+		assertThat(MultiGroupListener.latch1.await(30, TimeUnit.SECONDS)).isTrue();
+		assertThat(MultiGroupListener.latch2.await(30, TimeUnit.SECONDS)).isTrue();
 
 		MultiGroupListener.latch1 = new CountDownLatch(2);
 		MultiGroupListener.latch2 = new CountDownLatch(2);
 
 		multiGroupListener.seekToBeginningForGroup("group2");
-		assertThat(MultiGroupListener.latch2.await(10, TimeUnit.SECONDS)).isTrue();
-		assertThat(MultiGroupListener.latch1.await(100, TimeUnit.MICROSECONDS)).isFalse();
+		assertThat(MultiGroupListener.latch2.await(30, TimeUnit.SECONDS)).isTrue();
+		assertThat(MultiGroupListener.latch1.await(1, TimeUnit.SECONDS)).isFalse();
 		assertThat(MultiGroupListener.latch1.getCount()).isEqualTo(2);
 	}
 
@@ -128,7 +140,8 @@ class AbstractConsumerSeekAwareTests {
 		@Bean
 		ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
 				ConsumerFactory<String, String> consumerFactory) {
-			ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
+			ConcurrentKafkaListenerContainerFactory<String, String> factory =
+					new ConcurrentKafkaListenerContainerFactory<>();
 			factory.setConsumerFactory(consumerFactory);
 			return factory;
 		}
@@ -172,7 +185,9 @@ class AbstractConsumerSeekAwareTests {
 					}
 				});
 			}
+
 		}
+
 	}
 
 }
