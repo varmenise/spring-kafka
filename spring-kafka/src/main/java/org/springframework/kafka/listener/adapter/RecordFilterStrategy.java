@@ -58,7 +58,7 @@ public interface RecordFilterStrategy<K, V> {
 	 * Determine whether {@link FilteringBatchMessageListenerAdapter} should invoke
 	 * the {@link BatchMessageListener} when all {@link ConsumerRecord}s in a batch have been filtered out
 	 * resulting in empty list. By default, do invoke the {@link BatchMessageListener} (return false).
-	 * @return true for {@link FilteringBatchMessageListenerAdapter} to {@link BatchMessageListener}
+	 * @return true for {@link FilteringBatchMessageListenerAdapter} to not invoke {@link BatchMessageListener}
 	 * when all {@link ConsumerRecord} in a batch filtered out
 	 * @since 3.3
 	 */
