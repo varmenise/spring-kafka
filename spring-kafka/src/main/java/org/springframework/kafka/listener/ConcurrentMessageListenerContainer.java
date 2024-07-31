@@ -352,6 +352,7 @@ public class ConcurrentMessageListenerContainer<K, V> extends AbstractMessageLis
 				}
 			}
 			for (KafkaMessageListenerContainer<K, V> container : this.containers) {
+				container.setFenced(true);
 				if (container.isRunning()) {
 					if (normal) {
 						container.stop(() -> {
