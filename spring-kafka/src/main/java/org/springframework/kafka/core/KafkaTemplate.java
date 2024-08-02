@@ -486,6 +486,9 @@ public class KafkaTemplate<K, V> implements KafkaOperations<K, V>, ApplicationCo
 					Object producerServers = this.producerFactory.getConfigurationProperties()
 							.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG);
 					String adminServers = this.kafkaAdmin.getBootstrapServers();
+					if (adminServers == null) {
+						adminServers = this.kafkaAdmin.getConfigurationProperties().get(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG).toString();
+					}
 					if (!producerServers.equals(adminServers)) {
 						Map<String, Object> props = new HashMap<>(this.kafkaAdmin.getConfigurationProperties());
 						props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, producerServers);
